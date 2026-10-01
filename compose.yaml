@@ -6,6 +6,6 @@ services:
       POSTGRES_USER: polymath
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: polymath
-    ports: ["5432:5432"]
+    ports: ["127.0.0.1:5432:5432"]
     volumes: ["/srv/fast/pgdata:/var/lib/postgresql/data"]
     restart: unless-stopped
