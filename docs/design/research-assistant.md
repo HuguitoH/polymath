@@ -86,13 +86,13 @@ Each decision lists what was chosen, what was rejected, and why. These are the p
 
 **Why:** a larger k trades one failure for another: more noise per question and still no guarantee of completeness. Extraction moves the cost to ingestion, where it is paid once per paper (~0.5M tokens for all 37), and makes comparative answers exact and cheap at query time. It also matches how a literature review is done by hand.
 
-### D2. Store matrix cells as rows (attribute, value), not as a wide table
+### D2. Store matrix cells as rows, grouped by contribution
 
-**Chosen:** `matrix_cell(paper_id, attribute, value, page, quote, …)`.
+**Chosen:** `matrix_cell(paper_id, contribution, attribute, value, page, quote, …)`, where `contribution` groups the attributes that belong together inside one paper.
 
 **Rejected:** one table, or one column per attribute.
 
-**Why:** the schema differs per sub-collection (§6). Rows let a new attribute be added without a migration, and let one paper have several values for the same attribute (a paper that tests two controllers). The cost is that "papers with filter = EKF *and* model = bicycle" needs a self-join; at 37 papers that is irrelevant.
+**Why:** the schema differs per sub-collection (§6), and rows let a new attribute be added without a migration. The `contribution` key fixes a flaw in plain attribute/value rows: a paper that tests an LQR controller on a bicycle model and an MPC controller on a four-wheel model would otherwise store four loose facts, and the pairing of controller and model would be lost. This is how the Open Research Knowledge Graph represents papers: subject–predicate–object triples grouped into *contributions*, with a reusable template per research domain, from which comparison tables are generated. The cost is that "papers with filter = EKF *and* model = bicycle" needs a self-join on `(paper_id, contribution)`; at 37 papers that is irrelevant.
 
 ### D3. A deterministic quote check, with normalisation
 
@@ -135,6 +135,18 @@ Each decision lists what was chosen, what was rejected, and why. These are the p
 ### D8. Re-extraction is keyed on content and prompt
 
 Every extracted cell records the PDF's SHA-256, the extractor model and the prompt version. Ingestion skips a paper whose hash and prompt version are unchanged, and re-extracts it when either changes. A bad cell can always be traced to the prompt that produced it, as with the brief.
+
+### D9. Typed values wherever the domain allows it
+
+**Chosen:** each attribute declares a type: an enumeration (`estimator ∈ {KF, EKF, UKF, observer, other}`), a number with a unit (`sampling_rate: 100 Hz`), a boolean, or free text as the last resort. `other` always exists, with the original wording kept, so the extractor is never forced into a wrong category.
+
+**Why:** published evaluations of LLM data extraction for systematic reviews report roughly 80% accuracy overall, with boolean and numeric fields more stable than free text. Enumerations also make comparative queries exact (`= 'EKF'`) instead of fuzzy.
+
+### D10. A verified quote is not a correct value: human review is part of the design
+
+**Chosen:** every cell has a review state (`unreviewed`, `confirmed`, `corrected`, `rejected`). Answers state when they rest on unreviewed cells. Reviewing is a quick pass over a generated table: value, page and quote side by side.
+
+**Why:** D3 catches *invented* quotes, not *misread* ones: the quote can be genuine while the value drawn from it is wrong (the paper mentions an EKF as related work, and the extractor records it as the paper's own estimator). The same literature recommends treating LLMs as a second reviewer, not as a replacement. With 37 papers, a full review is a few hours of work, and it is also how the matrix-correctness metric in §8 gets measured.
 
 ## 6. The literature matrix schema
 
@@ -186,8 +198,10 @@ chunk (
 
 matrix_cell (
     paper_id        uuid REFERENCES paper,
+    contribution    smallint NOT NULL DEFAULT 1,  -- groups attributes that belong together
     attribute       text NOT NULL,
-    value           text NOT NULL,
+    value           text NOT NULL,                -- validated against the attribute's type
+    review_state    text NOT NULL DEFAULT 'unreviewed',
     page            int  NOT NULL,
     quote           text NOT NULL,
     extractor_model text NOT NULL,
@@ -210,6 +224,12 @@ matrix_cell (
 
 No target numbers are set before a baseline exists. The first run sets the baseline; changes are judged against it.
 
+**Development and test split.** About two thirds of the questions are used while building and tuning; the remaining third is kept aside and run only to report results. Tuning prompts or chunk sizes against every question would make the reported numbers optimistic, the same overfitting a model has when it is scored on its training data.
+
+**Questions are written before looking at system output**, so they reflect what I need rather than what the system happens to answer well.
+
+**Offline evaluation, not monitoring.** `uv run polymath-eval` runs the fixed question set and writes one JSON file per run (commit hash, metrics, per-question results) under `eval/runs/`. Comparing runs shows whether a change helped or regressed, like a test suite for quality. The README shows the latest table. Monitoring real queries in production is a separate, later concern.
+
 ## 9. Delivery
 
 One PR per row, each referencing #1:
@@ -226,3 +246,11 @@ One PR per row, each referencing #1:
 - Does the Zotero Web API expose the Better BibTeX citation key directly, or must it be read from the item's *Extra* field? To verify on the first ingestion.
 - Do any papers rely on equations or tables for the facts the matrix needs? If so, PyMuPDF's plain text may lose them (see D4).
 - Is one extraction call per paper reliable at ~15k tokens of input, or should extraction run per section?
+
+## References
+
+- Edge et al. (2024). *From Local to Global: A Graph RAG Approach to Query-Focused Summarization.* arXiv:2404.16130. Why top-k retrieval fails on corpus-wide questions.
+- Asai et al. (2023). *Self-RAG.* arXiv:2310.11511. Retrieval on demand and self-critique.
+- Tang & Yang (2024). *MultiHop-RAG.* arXiv:2401.15391. Evaluating questions that span several documents.
+- Open Research Knowledge Graph: papers as contributions with templated properties, and generated comparison tables (e.g. arXiv:2308.12981).
+- Exploring the use of a Large Language Model for data extraction in systematic reviews (2024). arXiv:2405.14445. ~80% extraction accuracy; LLM as second reviewer.
