@@ -4,6 +4,9 @@ Tests run inside a transaction that is always rolled back, so they can never
 commit to the database they connect to. Nothing is truncated.
 """
 
+import hashlib
+import random
+
 from collections.abc import AsyncIterator
 
 import pytest
@@ -14,17 +17,20 @@ from pgvector.psycopg import register_vector_async
 from polymath.config import Settings
 from polymath.kernel.store import EventStore
 
-
 class FakeEmbedder:
-    """Deterministic embedder. Keeps store tests off the GPU and the network."""
+    """Deterministic embedder. Keeps store tests off the GPU and the network.
+
+    Each text gets its own direction, seeded from a hash of the text. Cosine
+    distance ignores length, so a constant vector per text would make every
+    vector parallel: all distances 0, and any search would "find" anything.
+    """
 
     model_name = "fake"
     dimensions = 1024
 
     async def embed(self, text: str) -> list[float]:
-        seed = float(sum(ord(char) for char in text) % 97) / 97.0
-        return [seed] * self.dimensions
-
+        rng = random.Random(hashlib.sha256(text.encode()).digest())
+        return [rng.uniform(-1.0, 1.0) for _ in range(self.dimensions)]
 
 class _SingleConnectionPool:
     """Hands every caller the same open connection.
@@ -36,7 +42,7 @@ class _SingleConnectionPool:
     def __init__(self, connection: AsyncConnection) -> None:
         self._connection = connection
 
-    def connection(self) -> AsyncConnection:
+    def connection(self) -> "_NoClose":
         return _NoClose(self._connection)
 
 
