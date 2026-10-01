@@ -71,7 +71,7 @@ class Verdict:
 
     @property
     def is_acceptable(self) -> bool:
-        return self.score >= QUALITY_FLOOR or not self.issue
+        return self.score >= QUALITY_FLOOR and not self.issue
 
 
 @dataclass(frozen=True, slots=True)
