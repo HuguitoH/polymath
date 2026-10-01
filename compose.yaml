@@ -1,0 +1,11 @@
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: polymath
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: polymath
+    ports: ["5432:5432"]
+    volumes: ["/srv/fast/pgdata:/var/lib/postgresql/data"]
+    restart: unless-stopped

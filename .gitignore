@@ -1,0 +1,18 @@
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# Tool caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+
+# Runtime audio (briefs render into AUDIO_DIR); a curated sample lives in docs/assets/
+*.wav
+!docs/assets/*.wav
