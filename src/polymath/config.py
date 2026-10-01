@@ -23,8 +23,8 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     model: str = "deepseek/deepseek-chat"
     model_is_local: bool = False
-    local_model: str = "qwen3:4b-instruct"
-    reasoning_model: str = "qwen3:4b"
+    # litellm needs the provider prefix to route a model to Ollama.
+    reasoning_model: str = "ollama_chat/qwen3:4b"
     embedding_model: str = "bge-m3"
     tts_voice: str = "af_bella"
 

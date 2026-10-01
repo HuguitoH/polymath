@@ -48,27 +48,28 @@ class LiteLLM:
     """Completion provider routing tiers to concrete models via litellm."""
 
     def __init__(self, settings: Settings) -> None:
-        base = settings.ollama_base_url
-        self._api_base = base
-        model = settings.model
+        self._api_base = settings.ollama_base_url
         self._tiers: dict[Tier, TierConfig] = {
+            # Everyday generation: whichever model .env points at.
             Tier.FAST: TierConfig(
-                model=model,
+                model=settings.model,
                 max_tokens=2000,
                 temperature=0.3,
                 local=settings.model_is_local,
             ),
+            # Local thinking model on the GPU; its prompts never leave the machine.
             Tier.REASONING: TierConfig(
-                model=model,
+                model=settings.reasoning_model,
                 max_tokens=2048,
                 temperature=0.7,
-                local=settings.model_is_local,
+                local=True,
             ),
+            # Strongest remote model, for the rare call that needs it.
             Tier.FRONTIER: TierConfig(
-                model=model,
+                model=settings.frontier_model,
                 max_tokens=4096,
                 temperature=0.7,
-                local=settings.model_is_local,
+                local=False,
             ),
         }
 
