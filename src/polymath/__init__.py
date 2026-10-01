@@ -1,2 +1,1 @@
-def main() -> None:
-    print("Hello from polymath!")
+"""Polymath: a self-hosted personal AI companion."""

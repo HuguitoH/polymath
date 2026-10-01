@@ -1,7 +1,7 @@
 [project]
 name = "polymath"
 version = "0.1.0"
-description = "Add your description here"
+description = "Self-hosted personal AI companion: event memory, a verified morning brief and local speech."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -22,7 +22,6 @@ dependencies = [
 ]
 
 [project.scripts]
-polymath = "polymath:main"
 polymath-brief = "polymath.cli:brief"
 
 [build-system]
