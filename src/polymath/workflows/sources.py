@@ -7,6 +7,10 @@ import httpx
 logger = logging.getLogger(__name__)
 
 
+class SourceError(RuntimeError):
+    """Raised when a source has nothing to contribute; the brief skips it."""
+
+
 @dataclass(frozen=True, slots=True)
 class Fragment:
     """A labelled piece of context for the brief. The model composes; it never invents."""
@@ -85,5 +89,10 @@ class FeedSource:
                 continue
             parsed = feedparser.parse(response.text)
             headlines.extend(entry.title for entry in parsed.entries[: self._limit])
+
+        if not headlines:
+            # An empty fragment would reach the model as "data" and invite it
+            # to invent headlines. Failing lets the brief skip this source.
+            raise SourceError(f"every feed failed ({len(self._urls)} tried)")
 
         return Fragment(label="titulares", body="\n".join(f"- {h}" for h in headlines))
