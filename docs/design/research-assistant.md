@@ -110,6 +110,8 @@ Each decision lists what was chosen, what was rejected, and why. These are the p
 
 **Why:** GROBID is better at structure but adds a service to run and maintain. With 37 papers I can inspect the section detection by hand. If headings are wrong in more than a few papers, GROBID is the next step, and the change is isolated behind the parser interface.
 
+**Evidence (first paper, Lee & Oh 2025, MDPI *Electronics*):** sections (bold 12 pt), subsections (italic, numbered) and the 20 figure and 3 table captions (bold 9 pt) are all detectable; PDF page numbers match the printed ones; table text survives. **Display equations do not:** `∫₀ᵗ e dt` is extracted as `0 edt`. Heading rules are publisher-specific, so each publisher in the corpus (MDPI, IEEE, arXiv) needs its own check.
+
 ### D5. Lexical retrieval with Postgres full-text search
 
 **Chosen:** a generated `tsvector` column with a GIN index, ranked with `ts_rank_cd`, fused with dense results by Reciprocal Rank Fusion (k = 60).
@@ -148,6 +150,28 @@ Every extracted cell records the PDF's SHA-256, the extractor model and the prom
 
 **Why:** D3 catches *invented* quotes, not *misread* ones: the quote can be genuine while the value drawn from it is wrong (the paper mentions an EKF as related work, and the extractor records it as the paper's own estimator). The same literature recommends treating LLMs as a second reviewer, not as a replacement. With 37 papers, a full review is a few hours of work, and it is also how the matrix-correctness metric in §8 gets measured.
 
+### D11. Figures and equations are located and shown, not described
+
+**Chosen:** at ingestion, every figure, table and numbered display equation is recorded as a *region*: paper, label (`Figure 17`, `Equation (21)`), page, bounding box and caption. An answer that refers to one shows the cropped region, rendered from the PDF, and a link that opens the paper in Zotero at that page (`zotero://open-pdf/library/items/<attachment>?page=<n>`).
+
+**Rejected for now:** describing figures with a vision model; converting equations to LaTeX.
+
+**Why:** what I need from a figure is to *see* it, not to read a model's paraphrase of it, which would add an error source and a model to run. Locating is deterministic: a figure is the drawing and image area directly above its bold `Figure N.` caption; a display equation is a right-margin `(N)` with nothing at the text column's left edge on the same line (which separates it from "see Equation (21)" in prose). Both were verified on the first paper. Crops are rendered on demand and cached as immutable, like the brief's audio.
+
+**Consequences for equations:** their extracted text is unreliable, so (1) D3 quotes must come from prose, never from equation text, and (2) the explanatory mode cannot *read* an equation it can only show. If `requires: equation` questions in §8 fail often enough to matter, the next step is a math-OCR pass that stores LaTeX next to each equation region, marked as derived and checked by rendering it beside the crop.
+
+### D12. LaTeX for equations: one general path, one exception, and the exact sources as an answer key
+
+**Chosen:** every display equation located by D11 is converted to LaTeX by math OCR on its crop, stored with `latex_source = ocr` and treated as derived (reviewed, never quoted). Papers from arXiv take their LaTeX from the author's source instead (`latex_source = arxiv`), because it is exact, public and always in the same format.
+
+**Rejected:** a source adapter per publisher (MDPI MathML, Elsevier, IEEE, Sage, ASME, Taylor & Francis text-mining access). Each one has its own access rules, licence and markup that changes without notice; eight fragile integrations for 37 papers is complexity not yet earned.
+
+**Why LaTeX at all:** extracted PDF text loses the structure of mathematics (`∫₀ᵗ e dt` becomes `0 edt`), so the explanatory mode could only *show* an equation, not reason about it. LaTeX keeps the structure, and language models read it well.
+
+**How the OCR is measured, not trusted:** papers with an exact source (arXiv source, and MDPI MathML fetched once for evaluation only) are the answer key. Running the OCR on their equations and comparing gives its accuracy *on this corpus*, which decides how much review the PDF-only publishers need. A cheap automatic check also flags OCR output whose symbols do not appear in the PDF's own garbled text for that equation.
+
+**Limits:** an arXiv preprint can differ from the published version in pages and equation numbers, so it is used only for papers whose ingested PDF *is* the arXiv version. Citations always point to the PDF that was ingested. Section detection rules are also publisher-specific (D4); each publisher in the corpus needs its own check.
+
 ## 6. The literature matrix schema
 
 ### Common attributes (every paper)
@@ -169,10 +193,14 @@ Types follow D9. `[…]` is an enumeration and always includes `other` (original
 
 | Attribute | Type | Values |
 |---|---|---|
-| `controlled_variable` | enum, multi | yaw rate, sideslip angle, roll, lateral acceleration, other |
+| `controlled_variable` | enum, multi | yaw rate, sideslip angle, longitudinal velocity, roll, lateral acceleration, other |
 | `controller_type` | enum | PID, LQR, MPC, sliding mode, fuzzy, learning-based, other |
-| `actuation` | enum, multi | steering, differential braking, torque vectoring, active suspension, other |
+| `adaptation` | enum | none, gain scheduling, RLS-based, learning-based, other |
+| `actuation` | enum, multi | steering, drive torque, differential braking, torque vectoring, active suspension, other |
 | `vehicle_model` | enum | kinematic bicycle, dynamic bicycle, four-wheel, multibody, none, other |
+
+> [!WARNING]
+> `vehicle_model` is where D10 bites first. Lee & Oh (2025) is explicitly model-free (`none`), yet its introduction discusses a bicycle model as related work, so a genuine quote supports the wrong value. The extraction prompt must ask for the model *the paper's own method uses*, and this attribute is reviewed first.
 
 **state estimation**
 
@@ -200,6 +228,7 @@ New tables, separate from the personal `event` store: different data, different 
 paper (
     id            uuid PRIMARY KEY,
     zotero_key    text UNIQUE NOT NULL,
+    attachment_key text NOT NULL,           -- the PDF item; zotero://open-pdf needs it, not the parent
     citekey       text UNIQUE NOT NULL,     -- Better BibTeX
     title, authors, year, venue, doi,
     collection    text NOT NULL,
@@ -214,6 +243,16 @@ chunk (
     content       text NOT NULL,
     embedding     vector(1024) NOT NULL,    -- HNSW, cosine
     tsv           tsvector GENERATED ALWAYS AS (to_tsvector('english', content)) STORED  -- GIN
+)
+
+region (
+    id            uuid PRIMARY KEY,
+    paper_id      uuid REFERENCES paper,
+    kind          text NOT NULL,            -- figure | table | equation
+    label         text NOT NULL,            -- "Figure 17", "Equation (21)"
+    page          int  NOT NULL,
+    bbox          real[4] NOT NULL,         -- PDF points: x0, y0, x1, y1
+    caption       text                      -- searchable like any chunk
 )
 
 matrix_cell (
@@ -232,7 +271,7 @@ matrix_cell (
 ## 8. Evaluation
 
 > [!IMPORTANT]
-> **Questions to be written by Hugo:** at least 30 (about 10 per sub-collection), each with the paper(s) and page(s) that answer it, stored in `eval/questions.yaml`. Only I can label them, and they are the most valuable artefact in the project.
+> **Questions to be written:** at least 30 (about 10 per sub-collection), each with the paper(s) and page(s) that answer it, stored in `eval/questions.yaml`. Only I can label them, and they are the most valuable artefact in the project.
 
 | What | Metric | How |
 |---|---|---|
@@ -245,6 +284,8 @@ matrix_cell (
 No target numbers are set before a baseline exists. The first run sets the baseline; changes are judged against it.
 
 **Development and test split.** About two thirds of the questions are used while building and tuning; the remaining third is kept aside and run only to report results. Tuning prompts or chunk sizes against every question would make the reported numbers optimistic, the same overfitting a model has when it is scored on its training data.
+
+**Questions are tagged with what they depend on** (`requires: table | figure | equation`), and refusals are tested: a question whose answer is not in the paper has `answer: not_in_sources`. The tags show where failures come from; the refusals show whether the system invents.
 
 **Questions are written before looking at system output**, so they reflect what I need rather than what the system happens to answer well.
 
@@ -264,7 +305,9 @@ One PR per row, each referencing #1:
 ## 10. Open questions
 
 - Does the Zotero Web API expose the Better BibTeX citation key directly, or must it be read from the item's *Extra* field? To verify on the first ingestion.
-- Do any papers rely on equations or tables for the facts the matrix needs? If so, PyMuPDF's plain text may lose them (see D4).
+- The first ingestion step produces an inventory: publisher × PDF attached × count. It answers how many papers depend on OCR, and how many need a PDF downloaded through the university library.
+- How many of the 37 papers have a PDF attached in Zotero? Items without one cannot be ingested; IEEE papers may need downloading through the university library.
+- Can a highlight be added to the region itself (a Zotero image annotation created through the Web API, opened with `annotation=`), rather than only opening the page? To verify after the MVP.
 - Is one extraction call per paper reliable at ~15k tokens of input, or should extraction run per section?
 
 ## References
