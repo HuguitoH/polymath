@@ -1,0 +1,17 @@
+[Unit]
+Description=Polymath morning brief
+# Retry budget for the restarts below: at most 5 attempts in 15 minutes.
+StartLimitIntervalSec=900
+StartLimitBurst=5
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/dev/polymath
+# Explicit: provider keys come from here, not from a library's import side effect.
+EnvironmentFile=%h/dev/polymath/.env
+ExecStart=%h/.local/bin/uv run polymath-brief
+TimeoutStartSec=300
+# User units cannot wait for the system's network-online.target, and the
+# catch-up run after boot (Persistent=true) can start before Wi-Fi is up.
+Restart=on-failure
+RestartSec=60

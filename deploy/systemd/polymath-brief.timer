@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the morning brief on weekdays
+
+[Timer]
+# Local time, so the brief does not shift by an hour when the clocks change.
+OnCalendar=Mon..Fri 07:00 Europe/Madrid
+Persistent=true
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target
