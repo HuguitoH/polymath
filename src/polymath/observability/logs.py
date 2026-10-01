@@ -66,14 +66,17 @@ class OtelJsonFormatter(logging.Formatter):
 
         # Uvicorn access records carry the useful values in args; promoting
         # them makes status and route queryable instead of buried in a string.
-        if record.name == "uvicorn.access" and isinstance(record.args, tuple):
-            if len(record.args) == 5:
-                client, method, path, _http_version, status = record.args
-                payload["body"] = "http request"
-                payload["client.address"] = client
-                payload["http.request.method"] = method
-                payload["url.path"] = path
-                payload["http.response.status_code"] = status
+        if (
+            record.name == "uvicorn.access"
+            and isinstance(record.args, tuple)
+            and len(record.args) == 5
+        ):
+            client, method, path, _http_version, status = record.args
+            payload["body"] = "http request"
+            payload["client.address"] = client
+            payload["http.request.method"] = method
+            payload["url.path"] = path
+            payload["http.response.status_code"] = status
 
         # Anything passed via extra= becomes a first-class field.
         payload.update({k: v for k, v in record.__dict__.items() if k not in _RESERVED})

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
@@ -92,7 +92,7 @@ class EventStore:
         self, *, since: timedelta, sources: frozenset[Source] | None = None
     ) -> list[Event]:
         """Chronological window - no vector involved."""
-        cutoff = datetime.now(timezone.utc) - since
+        cutoff = datetime.now(UTC) - since
 
         sql = ["SELECT * FROM event WHERE occurred_at >= %s"]
         params: list[object] = [cutoff]

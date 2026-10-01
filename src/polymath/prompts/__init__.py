@@ -1,6 +1,6 @@
 """Prompt assets, composed stable-parts-first so the KV cache prefix is reused."""
 
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 
 PROMPTS = Path(__file__).parent
@@ -10,7 +10,7 @@ PROMPTS = Path(__file__).parent
 VERSION = "2026-09-05f"
 
 
-@lru_cache(maxsize=None)
+@cache
 def _read(name: str) -> str:
     return (PROMPTS / f"{name}.md").read_text(encoding="utf-8").strip()
 

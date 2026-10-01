@@ -1,6 +1,6 @@
 import math
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from polymath.kernel.events import Event, Source
 from polymath.kernel.store import Candidate
@@ -48,7 +48,7 @@ def score_candidates(
 ) -> list[ScoredEvent]:
     """Rank candidates by relevance, freshness and importance combined."""
     w = weights or ScoringWeights()
-    reference = now or datetime.now(timezone.utc)
+    reference = now or datetime.now(UTC)
 
     scored = []
     for candidate in candidates:

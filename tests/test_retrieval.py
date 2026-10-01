@@ -1,10 +1,10 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from polymath.kernel.events import Event, Modality, Source
 from polymath.kernel.retrieval import score_candidates
 from polymath.kernel.store import Candidate
 
-NOW = datetime(2026, 8, 27, 12, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 8, 27, 12, 0, tzinfo=UTC)
 
 
 def _candidate(source: Source, age_days: int, distance: float) -> Candidate:

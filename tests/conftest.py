@@ -6,16 +6,15 @@ commit to the database they connect to. Nothing is truncated.
 
 import hashlib
 import random
-
 from collections.abc import AsyncIterator
 
-import pytest
 import pytest_asyncio
-from psycopg import AsyncConnection
 from pgvector.psycopg import register_vector_async
+from psycopg import AsyncConnection
 
 from polymath.config import Settings
 from polymath.kernel.store import EventStore
+
 
 class FakeEmbedder:
     """Deterministic embedder. Keeps store tests off the GPU and the network.
@@ -31,6 +30,7 @@ class FakeEmbedder:
     async def embed(self, text: str) -> list[float]:
         rng = random.Random(hashlib.sha256(text.encode()).digest())
         return [rng.uniform(-1.0, 1.0) for _ in range(self.dimensions)]
+
 
 class _SingleConnectionPool:
     """Hands every caller the same open connection.
