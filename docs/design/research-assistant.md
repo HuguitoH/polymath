@@ -163,14 +163,34 @@ Every extracted cell records the PDF's SHA-256, the extractor model and the prom
 
 ### Per sub-collection
 
-> [!IMPORTANT]
-> **To be written by Hugo.** These are the columns worth comparing across papers in each sub-collection. They decide which comparative questions the system can answer exactly.
+Types follow D9. `[…]` is an enumeration and always includes `other` (original wording kept); **multi** means one contribution can hold several values.
 
-| Sub-collection | Attributes |
-|---|---|
-| stability control | *e.g. controlled variable (yaw rate, sideslip), vehicle model, controller type, actuation, …* |
-| state estimation | *e.g. estimator (KF, EKF, UKF, observer), estimated states, sensors, sampling rate, …* |
-| friction estimation | *e.g. method, excitation required, surfaces tested, …* |
+**stability control**
+
+| Attribute | Type | Values |
+|---|---|---|
+| `controlled_variable` | enum, multi | yaw rate, sideslip angle, roll, lateral acceleration, other |
+| `controller_type` | enum | PID, LQR, MPC, sliding mode, fuzzy, learning-based, other |
+| `actuation` | enum, multi | steering, differential braking, torque vectoring, active suspension, other |
+| `vehicle_model` | enum | kinematic bicycle, dynamic bicycle, four-wheel, multibody, none, other |
+
+**state estimation**
+
+| Attribute | Type | Values |
+|---|---|---|
+| `estimator` | enum | KF, EKF, UKF, particle filter, Luenberger observer, sliding-mode observer, learning-based, other |
+| `estimated_states` | enum, multi | sideslip angle, longitudinal velocity, lateral velocity, yaw rate, tyre forces, friction coefficient, other |
+| `sensors` | enum, multi | IMU, GNSS, wheel encoders, steering angle, camera, lidar, other |
+| `sampling_rate` | number, Hz | |
+
+**friction estimation**
+
+| Attribute | Type | Values |
+|---|---|---|
+| `method` | enum | slip-slope, model-based observer, vibration or acoustic, vision-based, learning-based, other |
+| `tyre_model` | enum | Pacejka (magic formula), Dugoff, brush, LuGre, linear, none, other |
+| `excitation_needed` | boolean | true when the estimate requires braking, acceleration or a specific manoeuvre |
+| `surfaces_tested` | enum, multi | dry asphalt, wet asphalt, snow, ice, gravel, other |
 
 ## 7. Data model
 
@@ -212,7 +232,7 @@ matrix_cell (
 ## 8. Evaluation
 
 > [!IMPORTANT]
-> **Questions to be written:** at least 30 (about 10 per sub-collection), each with the paper(s) and page(s) that answer it, stored in `eval/questions.yaml`. Only I can label them, and they are the most valuable artefact in the project.
+> **Questions to be written by Hugo:** at least 30 (about 10 per sub-collection), each with the paper(s) and page(s) that answer it, stored in `eval/questions.yaml`. Only I can label them, and they are the most valuable artefact in the project.
 
 | What | Metric | How |
 |---|---|---|
