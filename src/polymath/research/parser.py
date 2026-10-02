@@ -4,9 +4,10 @@ The parser reports what the document is. What is worth indexing is decided by th
 """
 
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 from collections.abc import Iterator
 from dataclasses import dataclass
+from itertools import groupby
 from pathlib import Path
 from typing import Any
 
@@ -34,10 +35,19 @@ class Caption:
 
 
 @dataclass(frozen=True)
+class Paragraph:
+    page_start: int
+    page_end: int
+    section: tuple[str, ...]  # heading titles, outermost first
+    text: str  # line-break hyphens removed, running headers dropped
+
+
+@dataclass(frozen=True)
 class PaperStructure:
     headings: tuple[Heading, ...] = ()
     statements: tuple[Statement, ...] = ()
     captions: tuple[Caption, ...] = ()
+    paragraphs: tuple[Paragraph, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -62,8 +72,22 @@ class Line:
 
     @property
     def text(self) -> str:
-        """The line as read, without superscripts (citations such as "Lemma 1.²⁴", footnotes)."""
-        return "".join(s.text for s in self.spans if not s.superscript).strip()
+        """The line as read, without superscripts (citations such as "Lemma 1.²⁴", footnotes).
+
+        A removed superscript can be the only thing separating two words ("1.²⁴Given"),
+        so it leaves a space behind when a word follows it.
+        """
+        parts: list[str] = []
+        dropped = False
+        for span in self.spans:
+            if span.superscript:
+                dropped = True
+                continue
+            if dropped and span.text[:1].isalnum() and parts and not parts[-1].endswith(" "):
+                parts.append(" ")
+            parts.append(span.text)
+            dropped = False
+        return "".join(parts).strip()
 
     @property
     def font(self) -> str:
@@ -115,10 +139,12 @@ GLYPHS: dict[str, dict[int, str]] = {
 def parse_structure(pdf: Path) -> PaperStructure:
     lines = _read_lines(pdf)
     body = _body_style(lines)
+    headed = _headings(lines, body)
     return PaperStructure(
-        headings=tuple(_headings(lines, body)),
+        headings=tuple(heading for _, heading in headed),
         statements=tuple(_statements(lines, body.font)),
         captions=tuple(_captions(lines)),
+        paragraphs=tuple(_paragraphs(lines, headed)),
     )
 
 
@@ -164,7 +190,7 @@ def _body_style(lines: list[Line]) -> Style:
     return Style(fonts.most_common(1)[0][0], sizes.most_common(1)[0][0])
 
 
-def _headings(lines: list[Line], body: Style) -> Iterator[Heading]:
+def _headings(lines: list[Line], body: Style) -> list[tuple[list[Line], Heading]]:
     """Headings are set apart from the body; which ones, and at what level, depends on the paper.
 
     Front matter (title, authors, abstract) ends where "Introduction" starts. If the
@@ -172,12 +198,17 @@ def _headings(lines: list[Line], body: Style) -> Iterator[Heading]:
     ("References") must share the style of "Introduction". If it does not (Sage),
     "Introduction"'s font is level 1 and another font at least as large is level 2.
     """
-    candidates = _join_wrapped([line for line in lines if _set_apart(line, body)])
-    intro = next((c for c in candidates if _bare_title(c.text) == "introduction"), None)
-    if intro is None:
-        return  # no anchor: report no headings rather than guess
+    groups = _join_wrapped([line for line in lines if _set_apart(line, body)])
+    candidates = [(group, _joined(group)) for group in groups]
+    start = next(
+        (i for i, (_, c) in enumerate(candidates) if bare_title(c.text) == "introduction"), None
+    )
+    if start is None:
+        return []  # no anchor: report no headings rather than guess
+    intro = candidates[start][1]
     numbered_paper = NUMBERED.match(intro.text) is not None
-    for line in candidates[candidates.index(intro) :]:
+    headed: list[tuple[list[Line], Heading]] = []
+    for group, line in candidates[start:]:
         style, numbered = line.style, NUMBERED.match(line.text)
         if numbered_paper and numbered:
             level = numbered["number"].count(".") + 1
@@ -191,7 +222,8 @@ def _headings(lines: list[Line], body: Style) -> Iterator[Heading]:
             level = 2
         else:
             continue
-        yield Heading(level, line.page, line.text)
+        headed.append((group, Heading(level, line.page, line.text)))
+    return headed
 
 
 def _set_apart(line: Line, body: Style) -> bool:
@@ -209,27 +241,34 @@ def _set_apart(line: Line, body: Style) -> bool:
     )
 
 
-def _join_wrapped(candidates: list[Line]) -> list[Line]:
+def _join_wrapped(candidates: list[Line]) -> list[list[Line]]:
     """A heading that wraps continues in the same block and style, without a new number."""
-    joined: list[Line] = []
+    groups: list[list[Line]] = []
     for line in candidates:
-        previous = joined[-1] if joined else None
+        previous = groups[-1][-1] if groups else None
         if (
             previous is not None
             and previous.block == line.block
             and previous.style == line.style
             and not NUMBERED.match(line.text)
         ):
-            separator = Span(" ", previous.spans[-1].font, previous.spans[-1].size, False)
-            joined[-1] = Line(
-                previous.page, previous.block, (*previous.spans, separator, *line.spans)
-            )
+            groups[-1].append(line)
         else:
-            joined.append(line)
-    return joined
+            groups.append([line])
+    return groups
 
 
-def _bare_title(text: str) -> str:
+def _joined(group: list[Line]) -> Line:
+    """One logical line from the physical lines of a wrapped heading."""
+    spans: list[Span] = []
+    for line in group:
+        if spans:
+            spans.append(Span(" ", spans[-1].font, spans[-1].size, False))
+        spans.extend(line.spans)
+    return Line(group[0].page, group[0].block, tuple(spans))
+
+
+def bare_title(text: str) -> str:
     """ "1. Introduction" and "INTRODUCTION" are the same heading."""
     return re.sub(r"^[\dIVX.]+\s+", "", text).strip().casefold()
 
@@ -260,3 +299,80 @@ def _captions(lines: list[Line]) -> Iterator[Caption]:
         if label not in seen:
             seen.add(label)
             yield Caption(line.page, label)
+
+
+def _paragraphs(lines: list[Line], headed: list[tuple[list[Line], Heading]]) -> Iterator[Paragraph]:
+    """Body text block by block, each under the headings that contain it.
+
+    Skipped: front matter (before "Introduction"), heading and caption blocks, running
+    headers and footers, and blocks that are not prose (display equations, figure labels).
+    """
+    # Lines are compared by identity: two lines can print the same text.
+    opens = {id(group[0]): heading for group, heading in headed}
+    in_heading = {id(line) for group, _ in headed for line in group}
+    running = _running_lines(lines)
+    vocabulary = _vocabulary(lines)
+    path: list[Heading] = []
+    for _, block in groupby(lines, key=lambda line: line.block):
+        kept: list[Line] = []  # a block can hold a heading and the text that follows it
+        for line in block:
+            if id(line) in opens:
+                yield from _paragraph(kept, path, vocabulary)
+                heading = opens[id(line)]
+                path, kept = [*(h for h in path if h.level < heading.level), heading], []
+            elif id(line) not in in_heading and _running_key(line.text) not in running:
+                kept.append(line)
+        yield from _paragraph(kept, path, vocabulary)
+
+
+def _paragraph(kept: list[Line], path: list[Heading], vocabulary: set[str]) -> Iterator[Paragraph]:
+    if not path or not kept or CAPTION.match(kept[0].text):
+        return  # front matter, nothing left, or a caption
+    text = _unwrap([line.text for line in kept], vocabulary)
+    if _is_prose(text):
+        yield Paragraph(kept[0].page, kept[-1].page, tuple(h.title for h in path), text)
+
+
+def _running_key(text: str) -> str:
+    """Page numbers change from page to page; the rest of a running header does not."""
+    return re.sub(r"\d+", "", text).strip().casefold()
+
+
+def _running_lines(lines: list[Line]) -> set[str]:
+    """Short lines repeated on three or more pages are running headers or footers."""
+    pages: defaultdict[str, set[int]] = defaultdict(set)
+    for line in lines:
+        if len(line.text.split()) <= 12:
+            pages[_running_key(line.text)].add(line.page)
+    return {key for key, seen in pages.items() if len(seen) >= 3 or not key}
+
+
+def _vocabulary(lines: list[Line]) -> set[str]:
+    """Every word the paper prints whole, to decide how to undo a hyphen at a line break."""
+    return {
+        w.casefold() for line in lines for w in re.findall(r"[A-Za-z][A-Za-z-]*[A-Za-z]", line.text)
+    }
+
+
+def _unwrap(texts: list[str], vocabulary: set[str]) -> str:
+    """Join a block's lines. "velo-" + "city" is "velocity"; "path-" + "following" keeps its
+    hyphen if the paper prints "path-following" elsewhere and never "pathfollowing"."""
+    joined = texts[0]
+    for text in texts[1:]:
+        left = re.search(r"([A-Za-z]+)-$", joined)
+        right = re.match(r"([a-z]+)", text)
+        if left and right:
+            whole = (left[1] + right[1]).casefold()
+            hyphenated = f"{left[1]}-{right[1]}".casefold()
+            keep = hyphenated in vocabulary and whole not in vocabulary
+            joined = (joined if keep else joined[:-1]) + text
+        else:
+            joined = f"{joined} {text}"
+    return " ".join(joined.split())
+
+
+def _is_prose(text: str) -> bool:
+    """Sentences, not symbols: enough real words, mostly letters."""
+    visible = text.replace(" ", "")
+    words = re.findall(r"\b[a-z]{3,}\b", text)
+    return len(words) >= 5 and sum(c.isalpha() for c in visible) >= 0.6 * len(visible)
