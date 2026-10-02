@@ -61,13 +61,18 @@ class _NoClose:
 
 @pytest_asyncio.fixture
 async def connection() -> AsyncIterator[AsyncConnection]:
-    """One connection, one transaction, always rolled back."""
+    """One connection, one transaction, always rolled back.
+
+    The transaction is opened explicitly, so that any `conn.transaction()` in the code
+    under test becomes a savepoint inside it. Without this, the first such block on an
+    idle connection would open a real transaction and COMMIT, escaping the rollback.
+    """
     conn = await AsyncConnection.connect(Settings().database_url, autocommit=False)
     await register_vector_async(conn)
     try:
-        yield conn
+        async with conn.transaction(force_rollback=True):
+            yield conn
     finally:
-        await conn.rollback()
         await conn.close()
 
 
