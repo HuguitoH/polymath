@@ -1,0 +1,51 @@
+# Expected parser output: what a reader sees in the PDF, not what extraction produced.
+# Titles are compared without leading numbering, case-insensitively, whitespace collapsed.
+# Pages are PDF pages (1-based).
+file: "Lee and Oh - 2025 - An Adaptive PID Controller for Longitudinal Velocity and Yaw Rate Tracking of Autonomous Mobility Ba.pdf"
+publisher: mdpi
+has_outline: true           # 11 entries, 2 levels
+page_label_offset: 0
+
+headings:
+  - {level: 1, page: 1,  title: "Introduction"}
+  - {level: 1, page: 6,  title: "Adaptive PID Controller Based on RLS with Multiple Constraints"}
+  - {level: 2, page: 6,  title: "Adaptive PID Controller Design with Gain-Self Tuning"}
+  - {level: 2, page: 8,  title: "Multiple Constraints"}
+  - {level: 2, page: 10, title: "Stability Analysis with Persistency of Excitation"}
+  - {level: 1, page: 11, title: "Performance Evaluation"}
+  - {level: 2, page: 13, title: "Yaw Rate Tracking Results"}
+  - {level: 2, page: 17, title: "Longitudinal Velocity Tracking Results"}
+  - {level: 2, page: 21, title: "Yaw Rate Tracking Results with Disturbance and Noise"}
+  - {level: 1, page: 22, title: "Conclusions"}
+  - {level: 1, page: 23, title: "Abbreviations"}      # in the text but NOT in the outline: the outline is incomplete too
+  - {level: 1, page: 23, title: "References"}
+
+statements:
+  - {page: 10, label: "Assumption 1"}
+  - {page: 10, label: "Lemma 1"}
+  - {page: 10, label: "Theorem 1"}   # "(Closed-loop control stability)"; no separate Proof in this paper
+
+captions:
+  - {page: 6,  label: "Figure 1"}
+  - {page: 8,  label: "Figure 2"}
+  - {page: 11, label: "Figure 3"}
+  - {page: 12, label: "Figure 4"}
+  - {page: 12, label: "Table 1"}
+  - {page: 13, label: "Table 2"}
+  - {page: 13, label: "Table 3"}
+  - {page: 13, label: "Figure 5"}
+  - {page: 14, label: "Figure 6"}
+  - {page: 15, label: "Figure 7"}
+  - {page: 15, label: "Figure 8"}
+  - {page: 15, label: "Figure 9"}
+  - {page: 15, label: "Figure 10"}
+  - {page: 17, label: "Figure 11"}
+  - {page: 18, label: "Figure 12"}    # spans pp17-18; the "Figure 12. Cont." line on p17 is not a second caption
+  - {page: 18, label: "Figure 13"}
+  - {page: 19, label: "Figure 14"}
+  - {page: 19, label: "Figure 15"}
+  - {page: 19, label: "Figure 16"}
+  - {page: 20, label: "Figure 17"}
+  - {page: 21, label: "Figure 18"}
+  - {page: 21, label: "Figure 19"}
+  - {page: 21, label: "Figure 20"}

@@ -16,3 +16,4 @@ __pycache__/
 # Runtime audio (briefs render into AUDIO_DIR); a curated sample lives in docs/assets/
 *.wav
 !docs/assets/*.wav
+tests/fixtures/private/

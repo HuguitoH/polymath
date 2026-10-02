@@ -1,0 +1,29 @@
+# Expected parser output: what a reader sees in the PDF, not what extraction produced.
+# Titles are compared without leading numbering, case-insensitively, whitespace collapsed.
+# Pages are PDF pages (1-based).
+# TODO: rename this file to the paper's Better BibTeX citekey.
+file: "Automatic_Lane_Change_System_with_Double_Loop_PID_Algorithm.pdf"
+publisher: ieee
+has_outline: false
+page_label_offset: 1976     # printed page numbers 1977-1980; the PDF has no page labels
+
+headings:
+  - {level: 1, page: 1, title: "INTRODUCTION"}
+  - {level: 1, page: 2, title: "LOOK-AHEAD MODEL"}
+  - {level: 1, page: 3, title: "DOUBLE LOOP PID"}
+  - {level: 1, page: 3, title: "EXPERIEMENTAL RESULT"}    # typo is in the paper; expected text is what is printed
+  - {level: 2, page: 3, title: "CarMaker Simulation for ALC"}
+  - {level: 2, page: 3, title: "Real Vehicle Test for ALC"}
+  - {level: 1, page: 4, title: "CONCLUSION"}
+  - {level: 1, page: 4, title: "ACKNOWLEDGEMENT"}
+  - {level: 1, page: 4, title: "REFERENCES"}
+
+statements: []
+
+# IEEE sets captions in the BODY font: a caption rule that requires a non-body font misses all of them.
+captions:
+  - {page: 1, label: "Fig. 1"}
+  - {page: 2, label: "Fig. 2"}
+  - {page: 3, label: "Fig. 3"}
+  - {page: 3, label: "Fig. 4"}
+  - {page: 4, label: "Fig. 5"}

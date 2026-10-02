@@ -1,0 +1,51 @@
+# Expected parser output: what a reader sees in the PDF, not what extraction produced.
+# Titles are compared without leading numbering, case-insensitively, whitespace collapsed.
+# Pages are PDF pages (1-based), not printed page labels.
+file: "Liang et al. - 2021 - Yaw rate tracking-based path-following control for four-wheel independent driving and four-wheel ind.pdf"
+publisher: sage
+has_outline: false          # font rules only
+page_label_offset: 259      # PDF page 1 is printed as 260
+
+# Front matter (title, authors, Abstract, Keywords) is not a heading:
+# the abstract comes from Zotero metadata.
+headings:
+  - {level: 1, page: 1,  title: "Introduction"}
+  - {level: 1, page: 2,  title: "The architecture of control system and simulation platform"}  # wraps over two lines
+  - {level: 1, page: 3,  title: "Kinematics yaw rate controller"}
+  - {level: 2, page: 3,  title: "Path-following model"}
+  - {level: 2, page: 3,  title: "Yaw rate calculation"}
+  - {level: 1, page: 4,  title: "Coordinating mechanism"}
+  - {level: 2, page: 4,  title: "Basic longitudinal coordinating mechanism"}
+  - {level: 2, page: 5,  title: "Coordinating mechanism based on yaw rate prediction"}       # wraps over two lines
+  - {level: 1, page: 6,  title: "Vehicle motion controller"}
+  - {level: 2, page: 6,  title: "Upper-level controller"}
+  - {level: 2, page: 7,  title: "Tire force allocation"}  # no "Lower-level controller" heading exists (checked)
+  - {level: 1, page: 8,  title: "Results and discussions"}
+  - {level: 2, page: 8,  title: "Lane change maneuver"}
+  - {level: 2, page: 8,  title: "J-turn maneuver"}
+  - {level: 2, page: 11, title: "Ramp maneuver"}
+  - {level: 1, page: 12, title: "Conclusion"}
+  - {level: 1, page: 12, title: "Declaration of conflicting interests"}  # real heading; the indexer skips it
+  - {level: 1, page: 12, title: "Funding"}
+  - {level: 1, page: 12, title: "ORCID iD"}
+  - {level: 1, page: 12, title: "References"}
+  - {level: 1, page: 13, title: "Appendix 1"}
+  - {level: 2, page: 13, title: "Notation"}
+
+statements:
+  - {page: 4, label: "Lemma 1"}                    # superscript 24 is a citation, not part of the label
+  - {page: 4, label: "Theorem 1"}                  # closed-loop stability condition
+  - {page: 4, label: "Proof", proves: "Theorem 1"}
+
+captions:
+  - {page: 3,  label: "Figure 1"}
+  - {page: 3,  label: "Figure 2"}
+  - {page: 5,  label: "Figure 3"}
+  - {page: 6,  label: "Figure 4"}
+  - {page: 6,  label: "Figure 5"}
+  - {page: 8,  label: "Figure 6"}
+  - {page: 9,  label: "Table 1"}
+  - {page: 9,  label: "Figure 7"}   # missed by diagnose.py: caption lines over 100 characters were filtered out
+  - {page: 10, label: "Table 2"}
+  - {page: 10, label: "Figure 8"}
+  - {page: 11, label: "Figure 9"}

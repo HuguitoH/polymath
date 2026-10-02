@@ -1,0 +1,57 @@
+# Expected parser output: what a reader sees in the PDF, not what extraction produced.
+# Titles are compared without leading numbering, case-insensitively, whitespace collapsed.
+# Symbols are NOT normalised: titles are written as printed, so this file fails
+# until the per-font character map works ("PIDþFF" must come out as "PID+FF").
+# Pages are PDF pages (1-based), not printed page labels.
+file: "Lu et al. - 2016 - Enhancing vehicle cornering limit through sideslip and yaw rate control.pdf"
+publisher: elsevier
+has_outline: true           # 18 entries; L1 is the paper title, sections are L2, subsections L3
+page_label_offset: 454      # PDF page 1 is printed as 455
+
+headings:
+  - {level: 1, page: 1,  title: "Introduction"}
+  - {level: 1, page: 2,  title: "Nomenclature"}       # in the text but not in the outline
+  - {level: 1, page: 4,  title: "Vehicle models"}
+  - {level: 2, page: 4,  title: "Model for control system testing"}
+  - {level: 2, page: 4,  title: "Model for phase-plane analysis"}
+  - {level: 2, page: 5,  title: "Model for control system design"}
+  - {level: 1, page: 6,  title: "Control system design"}
+  - {level: 2, page: 7,  title: "Sideslip control: activation schemes"}
+  - {level: 2, page: 7,  title: "PID+FF and H∞ design"}  # extracted as "PIDþFF and H1": two glyph remaps
+  - {level: 2, page: 9,  title: "Closed-loop performance and controllability analysis of the system"}
+  - {level: 1, page: 10, title: "Sideslip angle estimator"}
+  - {level: 1, page: 11, title: "Simulation results"}
+  - {level: 2, page: 11, title: "Phase-plane analysis of the controlled vehicle"}
+  - {level: 2, page: 12, title: "Performance of the sideslip controllers in a sequence of step steers"}
+  - {level: 1, page: 14, title: "Experimental results"}
+  - {level: 1, page: 17, title: "Conclusions"}
+  - {level: 1, page: 17, title: "Acknowledgments"}
+  - {level: 1, page: 17, title: "References"}
+
+statements: []
+
+captions:
+  - {page: 4,  label: "Fig. 1"}
+  - {page: 5,  label: "Fig. 2"}
+  - {page: 5,  label: "Fig. 3"}
+  - {page: 8,  label: "Fig. 4"}
+  - {page: 8,  label: "Fig. 5"}
+  - {page: 10, label: "Fig. 6"}     # Fig. 6-8 and 12 were missed by diagnose.py (long caption lines)
+  - {page: 11, label: "Fig. 7"}
+  - {page: 12, label: "Fig. 8"}
+  - {page: 13, label: "Fig. 9"}
+  - {page: 13, label: "Fig. 10"}
+  - {page: 14, label: "Fig. 11"}
+  - {page: 14, label: "Fig. 12"}
+  - {page: 14, label: "Fig. 13"}
+  - {page: 15, label: "Fig. 14"}
+  - {page: 15, label: "Fig. 15"}
+  - {page: 16, label: "Fig. 16"}
+  - {page: 16, label: "Fig. 17"}
+  - {page: 16, label: "Fig. 18"}
+  # Elsevier puts "Table N" alone on one line and the caption text on the next,
+  # so the caption pattern must accept a bare "Table N" line.
+  - {page: 7,  label: "Table 1"}
+  - {page: 13, label: "Table 2"}
+  - {page: 17, label: "Table 3"}
+  - {page: 17, label: "Table 4"}

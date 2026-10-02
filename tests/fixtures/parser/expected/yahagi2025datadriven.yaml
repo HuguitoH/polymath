@@ -1,0 +1,53 @@
+# Expected parser output: what a reader sees in the PDF, not what extraction produced.
+# Titles are compared without leading numbering, case-insensitively, whitespace collapsed.
+# Pages are PDF pages (1-based), not printed page labels.
+file: "Yahagi and Kajiwara - 2025 - Data-driven design of model-free control for reference model tracking based on an ultra-local model.pdf"
+publisher: sage
+has_outline: false
+page_label_offset: 1341     # PDF page 1 is printed as 1342
+
+headings:
+  - {level: 1, page: 1,  title: "Introduction"}
+  - {level: 1, page: 2,  title: "Problem formulation"}
+  - {level: 1, page: 3,  title: "Controller structure"}
+  - {level: 2, page: 3,  title: "Traditional MFC based on the ultra-local model"}
+  - {level: 2, page: 4,  title: "Practical MR-MFC"}
+  - {level: 2, page: 5,  title: "Stability analysis"}
+  - {level: 1, page: 5,  title: "Data-driven design for MR-MFC"}
+  - {level: 2, page: 5,  title: "Standard VRFT"}
+  - {level: 2, page: 6,  title: "Data-driven tuning of the proposed controller"}
+  - {level: 2, page: 6,  title: "Algorithm"}
+  - {level: 1, page: 6,  title: "Simulation verification"}
+  - {level: 2, page: 7,  title: "Simulation environment"}
+  - {level: 2, page: 7,  title: "Initial run results"}
+  - {level: 2, page: 7,  title: "Tuning results"}
+  - {level: 2, page: 10, title: "Discussion"}         # subsection font: Discussion sits under Simulation verification
+  - {level: 1, page: 10, title: "Conclusion"}
+  - {level: 1, page: 11, title: "Declaration of conflicting interests"}
+  - {level: 1, page: 11, title: "Funding"}
+  - {level: 1, page: 11, title: "ORCID iD"}
+  - {level: 1, page: 11, title: "References"}
+  - {level: 1, page: 12, title: "Appendix 1"}
+
+statements:
+  - {page: 4, label: "Remark 1"}
+  - {page: 4, label: "Remark 2"}
+  - {page: 6, label: "Remark 3"}
+
+captions:
+  - {page: 3,  label: "Figure 1"}
+  - {page: 3,  label: "Figure 2"}
+  - {page: 4,  label: "Figure 3"}
+  - {page: 4,  label: "Figure 4"}
+  - {page: 6,  label: "Figure 5"}
+  - {page: 7,  label: "Figure 6"}
+  - {page: 7,  label: "Figure 7"}
+  - {page: 7,  label: "Table 1"}
+  - {page: 8,  label: "Table 2"}
+  - {page: 8,  label: "Figure 8"}
+  - {page: 8,  label: "Figure 9"}
+  - {page: 8,  label: "Figure 10"}
+  - {page: 9,  label: "Table 3"}
+  - {page: 9,  label: "Table 4"}
+  - {page: 9,  label: "Figure 11"}
+  - {page: 10, label: "Figure 12"}
