@@ -48,6 +48,7 @@ class PaperStructure:
     statements: tuple[Statement, ...] = ()
     captions: tuple[Caption, ...] = ()
     paragraphs: tuple[Paragraph, ...] = ()
+    page_labels: tuple[str | None, ...] = ()  # printed page per PDF page, index 0 = page 1
 
 
 @dataclass(frozen=True)
@@ -137,7 +138,7 @@ GLYPHS: dict[str, dict[int, str]] = {
 
 
 def parse_structure(pdf: Path) -> PaperStructure:
-    lines = _read_lines(pdf)
+    lines, page_labels = _read_document(pdf)
     body = _body_style(lines)
     headed = _headings(lines, body)
     return PaperStructure(
@@ -145,27 +146,32 @@ def parse_structure(pdf: Path) -> PaperStructure:
         statements=tuple(_statements(lines, body.font)),
         captions=tuple(_captions(lines)),
         paragraphs=tuple(_paragraphs(lines, headed)),
+        page_labels=page_labels,
     )
 
 
-def _read_lines(pdf: Path) -> list[Line]:
-    """Every text line, whatever its font: IEEE sets captions in the body font.
+def _read_document(pdf: Path) -> tuple[list[Line], tuple[str | None, ...]]:
+    """Every text line, whatever its font (IEEE sets captions in the body font),
+    and the printed label of each page ("455"), if the PDF defines them.
 
     The only function that touches PyMuPDF, whose type hints are partial;
     everything after this boundary is strictly typed.
     """
     lines: list[Line] = []
+    labels: list[str | None] = []
     block_id = 0
     with pymupdf.open(pdf) as doc:  # type: ignore[no-untyped-call]
         for index in range(doc.page_count):
-            layout: dict[str, Any] = doc.load_page(index).get_text("dict")
+            page = doc.load_page(index)
+            labels.append(page.get_label() or None)
+            layout: dict[str, Any] = page.get_text("dict")
             for block in layout["blocks"]:
                 block_id += 1
                 for line in block.get("lines", []):
                     spans = tuple(_span(s) for s in line["spans"])
                     if "".join(s.text for s in spans).strip():
                         lines.append(Line(index + 1, block_id, spans))
-    return lines
+    return lines, tuple(labels)
 
 
 def _span(raw: dict[str, Any]) -> Span:
