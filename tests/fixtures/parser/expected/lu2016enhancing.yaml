@@ -55,3 +55,10 @@ captions:
   - {page: 13, label: "Table 2"}
   - {page: 17, label: "Table 3"}
   - {page: 17, label: "Table 4"}
+
+# Chunking: each passage must appear whole in exactly one chunk of its section.
+passages:
+  - page: 7
+    section: ["Control system design", "PID+FF and H∞ design"]
+    text: "Two PI regulators are applied for synthesizing the PID+FF scheme; one for yaw rate control and a second one for sideslip control."
+never_in_chunks: ["þ", "¼"]

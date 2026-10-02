@@ -50,3 +50,11 @@ captions:
   - {page: 9,  label: "Table 5"}
   - {page: 9,  label: "Figure 9"}   # missed by diagnose.py (long caption line)
   - {page: 10, label: "Table 6"}
+
+# Chunking: each passage must appear whole in exactly one chunk of its section.
+# "mea-surement" is a line-break hyphen (removed); "yaw-rate" is a real one (kept).
+passages:
+  - page: 10
+    section: ["Conclusion"]
+    text: "which eliminates the influence of measurement noise and hence realized the desired vehicle yaw-rate control"
+never_in_chunks: []

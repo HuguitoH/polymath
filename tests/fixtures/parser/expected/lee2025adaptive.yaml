@@ -49,3 +49,13 @@ captions:
   - {page: 21, label: "Figure 18"}
   - {page: 21, label: "Figure 19"}
   - {page: 21, label: "Figure 20"}
+
+# Chunking: each passage must appear whole in exactly one chunk of its section.
+passages:
+  - page: 20
+    section: ["Performance Evaluation", "Longitudinal Velocity Tracking Results"]
+    text: "The self-tuning gain (Figure 16) reflects this coefficient behavior"
+  - page: 20
+    section: ["Performance Evaluation", "Longitudinal Velocity Tracking Results"]
+    text: "This is consistent with the"
+never_in_chunks: []

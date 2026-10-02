@@ -49,3 +49,14 @@ captions:
   - {page: 10, label: "Table 2"}
   - {page: 10, label: "Figure 8"}
   - {page: 11, label: "Figure 9"}
+
+# Chunking: each passage must appear whole in exactly one chunk of its section.
+# Text is written as a reader sees it: line-break hyphens removed, symbols as printed.
+passages:
+  - page: 10
+    section: ["Results and discussions", "J-turn maneuver"]
+    text: "Figure 8(f) shows the response of longitudinal velocity. It is found that both the controller A and controller B"
+  - page: 4
+    section: ["Kinematics yaw rate controller", "Yaw rate calculation"]
+    text: "Lemma 1. Given a positive scalar g, the closed-loop system in equation (6) is asymptotically stable"
+never_in_chunks: ["Proc IMechE Part D", "Liang et al."]

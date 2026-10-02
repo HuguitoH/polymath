@@ -51,3 +51,10 @@ captions:
   - {page: 9,  label: "Table 4"}
   - {page: 9,  label: "Figure 11"}
   - {page: 10, label: "Figure 12"}
+
+# Chunking: each passage must appear whole in exactly one chunk of its section.
+passages:
+  - page: 10
+    section: ["Simulation verification", "Discussion"]
+    text: "because the estimator includes low-pass filters and estimation errors may occur"
+never_in_chunks: ["Proc IMechE Part D", "Yahagi and Kajiwara"]

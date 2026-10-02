@@ -27,3 +27,10 @@ captions:
   - {page: 3, label: "Fig. 3"}
   - {page: 3, label: "Fig. 4"}
   - {page: 4, label: "Fig. 5"}
+
+# Chunking: each passage must appear whole in exactly one chunk of its section.
+passages:
+  - page: 3
+    section: ["EXPERIEMENTAL RESULT", "CarMaker Simulation for ALC"]
+    text: "To verify the ALC algorithm in the CarMaker simulation environment, we construct simulation code using Matlab/Simulink."
+never_in_chunks: []
