@@ -1,8 +1,10 @@
 """Command-line entry points for scheduled routines."""
 
+import argparse
 import asyncio
 import logging
 import sys
+from pathlib import Path
 
 import httpx
 
@@ -13,6 +15,8 @@ from polymath.kernel.llm import LiteLLM
 from polymath.kernel.speech import KokoroSynthesizer
 from polymath.kernel.store import EventStore
 from polymath.observability.logs import configure as configure_logging
+from polymath.research.ingest import IngestError, ingest_pdf
+from polymath.research.store import PaperStore
 from polymath.workflows.brief import compose_brief
 from polymath.workflows.sources import BriefSource, FeedSource, WeatherSource
 
@@ -57,3 +61,31 @@ async def _run_brief() -> int:
 def brief() -> None:
     """Entry point: polymath-brief"""
     sys.exit(asyncio.run(_run_brief()))
+
+
+async def _run_ingest(pdf: Path, citekey: str, title: str) -> int:
+    settings = Settings()
+    pool = make_pool(settings)
+    await pool.open()
+    try:
+        async with httpx.AsyncClient() as client:
+            store = PaperStore(pool, OllamaEmbedder(settings, client))
+            outcome = await ingest_pdf(pdf, citekey, title, store)
+            logger.info("paper ingested", extra={"citekey": citekey, "outcome": outcome})
+            print(f"{citekey}: {outcome}")
+        return 0
+    except IngestError:
+        logger.exception("ingest failed", extra={"citekey": citekey})
+        return 1
+    finally:
+        await pool.close()
+
+
+def ingest() -> None:
+    """Entry point: polymath-ingest PDF --citekey KEY --title TITLE"""
+    parser = argparse.ArgumentParser(description="Parse, chunk, embed and store one paper.")
+    parser.add_argument("pdf", type=Path)
+    parser.add_argument("--citekey", required=True)
+    parser.add_argument("--title", required=True, help="until Zotero supplies it")
+    args = parser.parse_args()
+    sys.exit(asyncio.run(_run_ingest(args.pdf, args.citekey, args.title)))

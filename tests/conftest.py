@@ -14,6 +14,7 @@ from psycopg import AsyncConnection
 
 from polymath.config import Settings
 from polymath.kernel.store import EventStore
+from polymath.research.store import PaperStore
 
 
 class FakeEmbedder:
@@ -79,3 +80,8 @@ async def connection() -> AsyncIterator[AsyncConnection]:
 @pytest_asyncio.fixture
 async def store(connection: AsyncConnection) -> EventStore:
     return EventStore(_SingleConnectionPool(connection), FakeEmbedder())  # type: ignore[arg-type]
+
+
+@pytest_asyncio.fixture
+async def paper_store(connection: AsyncConnection) -> PaperStore:
+    return PaperStore(_SingleConnectionPool(connection), FakeEmbedder())  # type: ignore[arg-type]

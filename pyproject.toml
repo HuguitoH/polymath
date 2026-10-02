@@ -25,6 +25,7 @@ dependencies = [
 
 [project.scripts]
 polymath-brief = "polymath.cli:brief"
+polymath-ingest = "polymath.cli:ingest"
 
 [build-system]
 requires = ["uv_build>=0.12.6,<0.13.0"]
