@@ -110,7 +110,27 @@ Each decision lists what was chosen, what was rejected, and why. These are the p
 
 **Why:** GROBID is better at structure but adds a service to run and maintain. With 37 papers I can inspect the section detection by hand. If headings are wrong in more than a few papers, GROBID is the next step, and the change is isolated behind the parser interface.
 
-**Evidence (first paper, Lee & Oh 2025, MDPI *Electronics*):** sections (bold 12 pt), subsections (italic, numbered) and the 20 figure and 3 table captions (bold 9 pt) are all detectable; PDF page numbers match the printed ones; table text survives. **Display equations do not:** `∫₀ᵗ e dt` is extracted as `0 edt`. Heading rules are publisher-specific, so each publisher in the corpus (MDPI, IEEE, arXiv) needs its own check.
+**Generic rules first, publisher exceptions only where measured:** body text is the most common font (family and size, by character count); headings are short lines set in a different font from the body (larger, bold, or another family), with numbering as supporting evidence only (`2.1.`, Roman numerals in IEEE: `I. INTRODUCTION`); captions start with `Fig.`, `Figure`, `Table` or `TABLE`. One or two sample papers per publisher validate these rules and become **parser regression tests**: each sample stores its expected headings and captions, and `pytest` fails if a rule change breaks another publisher.
+
+**Evidence (first paper, Lee & Oh 2025, MDPI *Electronics*):** sections (bold 12 pt), subsections (italic, numbered) and the 20 figure and 3 table captions (bold 9 pt) are all detectable; PDF page numbers match the printed ones; table text survives. **Display equations do not:** `∫₀ᵗ e dt` is extracted as `0 edt`. Heading rules are publisher-specific, so each publisher in the corpus needs its own check.
+
+**Evidence (six papers, five publishers: MDPI, IEEE, Elsevier, Sage, Taylor & Francis):**
+
+| Finding | Consequence |
+|---|---|
+| Body size ranges from 8.1 pt (Elsevier) to 10.5 pt (T&F); IEEE captions are not bold; Elsevier headings are the same size as the body | Rules are relative to each paper's body font, never absolute sizes |
+| `Adv…` fonts encode symbols privately: `þ`→`+`, `¼`→`=`, `ð`/`Þ`→`(`/`)`, and `:` as the decimal point (`μ ¼ 0:5` is `μ = 0.5`). Seen in Elsevier **and Sage** (Liang: 121 suspect glyphs), so it belongs to the typesetter's fonts, not to one publisher | The character map is keyed by font, not by publisher (see the row on per-font encodings below), and runs before anything else, including equation-number detection, since `ð1Þ` is `(1)`. Without it, the matrix would store `0:5` with a quote that *matches the corrupted text*, so D3 would pass a wrong value |
+| Sage headings are **neither numbered nor bold** (Liang: no line flagged bold; `Introduction` never appears as a candidate). `Abstract` and `References` are set at body size in `AdvPS8E82`, a different family from the body's `AdvTimes` | Neither numbering nor weight is reliable. The primary signal is a **font family different from the body's**, at body size or larger, on a short line; captions are told apart by their size and the `Figure N.` pattern |
+| **Font difference finds every heading in all six papers, but with poor precision.** Equation lines (math fonts: `CMR10`, `MTSY`, `AdvP4C4E74`, italic `MinionPro-It`), running headers (`Liang et al.`, `Proc IMechE…`), page numbers, theorem statements in italics, and text inside figures (axis labels, extracted reversed: `rello`, `etar`) are also set in non-body fonts | Font difference is a recall filter, not a decision. Precision comes from extra filters: drop lines repeated across pages, lines that are mostly digits or maths symbols, lines ending in an equation number, and text inside figure regions. If the publisher embedded a PDF outline (bookmarks), it is used instead of the heuristic |
+| A PDF outline (bookmarks) exists in 3 of 6 samples: MDPI (11 entries, 2 levels), Taylor & Francis (21, 2 levels), Elsevier (18, 3 levels, with clean ASCII titles such as `PIDplusFF and Hinfty` where the body text is garbled). It is **absent in both Sage papers and in the IEEE conference paper** | Outline first, font rules as fallback. The three papers with an outline also act as an **answer key** for the fallback: run the font rules on them and compare against the outline to measure heading precision and recall, the same way MDPI and arXiv are the answer key for equation OCR |
+| Section and subsection use different styles in every publisher (Sage `AdvPS8E82` vs `AdvPS8E91`; Elsevier bold vs italic; T&F `MyriadPro-Bold` vs `MyriadPro-BoldIt`) | The heading level comes from the style, so `chunk.section` can store the path (`3 > 3.2`), not just the nearest title |
+| The private symbol encoding **differs between fonts**: in Elsevier `4` seems to mean `>` and `o` `<`, while in a Sage maths font `4` seems to mean `≤` and `\` `<`. Sage also emits control characters (`\x02`, `\x03`) for operators | The character map is keyed by the **exact font name**, and each entry is confirmed against a crop of the equation before it is trusted. Unknown control characters are kept and flagged, never silently dropped |
+| Numbered list items in the body (`1. The closed-loop…`) and prose lines that start with a figure reference (`Figure 8(c) shows…`) match the numbering and caption patterns | A pattern match alone never makes a heading or caption: the line must also be in a non-body font. Captions require `Fig./Figure/Table N` followed by `.` or `:`, not `(` |
+| Two-column layouts (IEEE, Elsevier) | Reading order uses PyMuPDF's column-aware sort; verified per sample |
+| Repeated headers and footers (`2 of 24`, conference banners) and numbered reference lists look like headings | Lines repeated across pages are dropped, and everything after the References heading is cut before analysis |
+| Formal statements (`Theorem 1.`, `Lemma 1`, `Proof.`, `Remark 2.`, `Assumption 1.`) are set in heading fonts but start a paragraph, not a section. In this corpus they carry the stability guarantees (Liang's Theorem 1 is the closed-loop stability condition) | They are not headings. They become `region` rows of kind `statement` (label, page, bbox), so "under what condition is it stable?" can be located and shown like a figure; their text stays in the chunk of the section that contains them. A proof is its own region, linked to the statement it proves by adjacency (a proof can span pages; a theorem statement fits one crop). Superscript citations are flattened into labels (`Lemma 1.24` is Lemma 1 citing [24]), so labels are normalised to `Kind N` |
+| Back matter (`Declaration of conflicting interests`, `Funding`, `ORCID iD`, `Acknowledgments`) has real headings but no technical content | **The parser reports what the document is; the indexer decides what to search.** These stay as headings in the parser's output and its tests, and the indexer skips them by a configurable list. Excluding them in the parser would make the parser wrong for any future question about funding or conflicts of interest |
+| Journal pagination differs from PDF pages (Lu: 455, Liang: 260, Yahagi & Kajiwara: 1342 on PDF page 1) | Both are stored: the PDF page to open the viewer, the printed page label to cite in the dissertation |
 
 ### D5. Lexical retrieval with Postgres full-text search
 
@@ -231,14 +251,16 @@ paper (
     attachment_key text NOT NULL,           -- the PDF item; zotero://open-pdf needs it, not the parent
     citekey       text UNIQUE NOT NULL,     -- Better BibTeX
     title, authors, year, venue, doi,
-    collection    text NOT NULL,
+    collections   text[] NOT NULL,           -- Zotero allows one paper in several collections;
+                                            -- it then gets every matching attribute set (§6)
     pdf_sha256    text NOT NULL
 )
 
 chunk (
     id            uuid PRIMARY KEY,
     paper_id      uuid REFERENCES paper,
-    page          int  NOT NULL,
+    page          int  NOT NULL,              -- PDF page index, 1-based: opens the viewer
+    page_label    text,                       -- printed journal page: used when citing
     section       text,
     content       text NOT NULL,
     embedding     vector(1024) NOT NULL,    -- HNSW, cosine
@@ -248,8 +270,9 @@ chunk (
 region (
     id            uuid PRIMARY KEY,
     paper_id      uuid REFERENCES paper,
-    kind          text NOT NULL,            -- figure | table | equation
-    label         text NOT NULL,            -- "Figure 17", "Equation (21)"
+    kind          text NOT NULL,            -- figure | table | equation | statement
+    label         text NOT NULL,            -- "Figure 17", "Equation (21)", "Theorem 1", "Proof"
+    proves        text,                     -- for a Proof: the label of the nearest preceding Theorem/Lemma
     page          int  NOT NULL,
     bbox          real[4] NOT NULL,         -- PDF points: x0, y0, x1, y1
     caption       text                      -- searchable like any chunk
