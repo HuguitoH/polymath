@@ -4,6 +4,7 @@ The parser reports what the document is. What is worth indexing is decided by th
 """
 
 import re
+from collections import Counter
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -40,9 +41,26 @@ class PaperStructure:
 
 
 @dataclass(frozen=True)
+class Span:
+    text: str
+    font: str
+    size: float
+    superscript: bool
+
+
+@dataclass(frozen=True)
 class Line:
     page: int
-    text: str
+    spans: tuple[Span, ...]
+
+    @property
+    def text(self) -> str:
+        """The line as read, without superscripts (citations such as "Lemma 1.²⁴", footnotes)."""
+        return "".join(s.text for s in self.spans if not s.superscript).strip()
+
+    @property
+    def font(self) -> str:
+        return self.spans[0].font
 
 
 # A caption opens with its label, a full stop or colon, and its text ("Figure 3. Path model"),
@@ -54,10 +72,23 @@ CAPTION = re.compile(
 )
 CONTINUATION = re.compile(r"^Cont(inued)?\.?$", re.IGNORECASE)
 
+# A formal statement opens a paragraph with its kind, its number and a full stop, set in a
+# font other than the body's ("Theorem 1.", "Remark 2."). A proof has no number. A bare
+# "Remark" (a table's column header) or "lemma 1, the..." in running text is not one.
+STATEMENT = re.compile(
+    r"^(?:(?P<kind>Theorem|Lemma|Proposition|Corollary|Definition|Assumption|Remark)\s+(?P<number>\d+)"
+    r"|(?P<proof>Proof))\s*\."
+)
+PROVABLE = ("Theorem", "Lemma", "Proposition", "Corollary")
+
 
 def parse_structure(pdf: Path) -> PaperStructure:
     lines = _read_lines(pdf)
-    return PaperStructure(captions=tuple(_captions(lines)))
+    body_font = _body_font(lines)
+    return PaperStructure(
+        statements=tuple(_statements(lines, body_font)),
+        captions=tuple(_captions(lines)),
+    )
 
 
 def _read_lines(pdf: Path) -> list[Line]:
@@ -72,10 +103,37 @@ def _read_lines(pdf: Path) -> list[Line]:
             layout: dict[str, Any] = doc.load_page(index).get_text("dict")
             for block in layout["blocks"]:
                 for line in block.get("lines", []):
-                    text = "".join(span["text"] for span in line["spans"]).strip()
-                    if text:
-                        lines.append(Line(index + 1, text))
+                    spans = tuple(
+                        Span(s["text"], s["font"], round(s["size"], 1), bool(s["flags"] & 1))
+                        for s in line["spans"]
+                    )
+                    if "".join(s.text for s in spans).strip():
+                        lines.append(Line(index + 1, spans))
     return lines
+
+
+def _body_font(lines: list[Line]) -> str:
+    """The body is whichever font carries the most characters."""
+    weight: Counter[str] = Counter()
+    for line in lines:
+        for span in line.spans:
+            weight[span.font] += len(span.text)
+    return weight.most_common(1)[0][0]
+
+
+def _statements(lines: list[Line], body_font: str) -> Iterator[Statement]:
+    last_provable: str | None = None  # a proof belongs to the nearest statement before it
+    for line in lines:
+        match = STATEMENT.match(line.text)
+        if not match or line.font == body_font:
+            continue
+        if match["proof"]:
+            yield Statement(line.page, "Proof", proves=last_provable)
+            continue
+        label = f"{match['kind']} {match['number']}"
+        if match["kind"] in PROVABLE:
+            last_provable = label
+        yield Statement(line.page, label)
 
 
 def _captions(lines: list[Line]) -> Iterator[Caption]:
